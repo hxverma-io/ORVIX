@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programming Hub | ORVIX</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            /* Ultra Premium Dark Theme */
+            --bg-base: #000000;
+            --bg-surface: #0a0a0c;
+            --bg-hover: #121214;
+            
+            --border-soft: #222222;
+            --border-hard: #333333;
+            
+            --text-main: #ffffff;
+            --text-body: #a1a1aa;
+            --text-muted: #71717a;
+            
+            --accent-color: #38bdf8;
+            --accent-purple: #a78bfa;
+            
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        
+        body { 
+            background: var(--bg-base); 
+            color: var(--text-body); 
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* ================= APP LAYOUT ================= */
+        
+        /* 1. GLOBAL APP SIDEBAR */
+        .app-sidebar {
+            width: 240px; background: var(--bg-base); border-right: 1px solid var(--border-soft); display: flex; flex-direction: column; padding: 2rem 1.5rem; z-index: 10;
+        }
+        .app-logo {
+            display: flex; align-items: center; gap: 0.8rem; font-weight: 700; font-size: 1.4rem; color: var(--text-main); letter-spacing: 1px; margin-bottom: 3rem;
+        }
+        .app-logo .icon {
+            width: 28px; height: 28px; background: var(--text-main); border-radius: 6px; display: flex; align-items: center; justify-content: center;
+        }
+        .app-logo .icon .dot { width: 6px; height: 6px; background: var(--bg-base); border-radius: 50%; margin: 1px; }
+
+        .nav-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin-bottom: 1rem; padding-left: 0.5rem; }
+        .app-nav { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; }
+        .nav-link {
+            padding: 0.7rem 1rem; border-radius: var(--radius-sm); color: var(--text-body); font-weight: 500; font-size: 0.95rem; transition: all 0.2s; display: flex; align-items: center; gap: 0.8rem;
+        }
+        .nav-link::before { content: '✦'; font-size: 0.7rem; color: transparent; transition: color 0.2s; }
+        .nav-link:hover { background: var(--bg-hover); color: var(--text-main); }
+        .nav-link.active { background: #111; color: var(--text-main); border: 1px solid var(--border-soft); }
+        .nav-link.active::before { color: var(--accent-color); }
+
+        .logout-btn {
+            background: transparent; border: 1px solid var(--border-soft); color: var(--text-body); padding: 0.8rem; border-radius: var(--radius-sm); font-family: inherit; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-top: auto;
+        }
+        .logout-btn:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+        /* 2. MAIN APP AREA */
+        .app-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #050505; }
+        
+        /* TOPBAR */
+        .app-topbar {
+            height: 70px; border-bottom: 1px solid var(--border-soft); display: flex; justify-content: space-between; align-items: center; padding: 0 2rem; background: var(--bg-base); z-index: 5;
+        }
+        .breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; font-weight: 500; }
+        .bc-link { color: var(--text-muted); transition: color 0.2s; cursor: pointer; }
+        .bc-link:hover { color: var(--text-main); }
+        .bc-sep { color: var(--border-hard); }
+        .bc-current { color: var(--text-main); }
+
+        .topbar-right { display: flex; align-items: center; gap: 1.5rem; }
+        .bell-btn { background: none; border: none; color: var(--text-body); font-size: 1.2rem; cursor: pointer; }
+        .top-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-soft); }
+
+        /* ================= PROGRAMMING HUB ================= */
+        .hub-content {
+            flex: 1; overflow-y: auto; padding: 3rem 4rem; position: relative; max-width: 1400px; margin: 0 auto; width: 100%;
+        }
+
+        /* HEADER */
+        .hub-header {
+            background: linear-gradient(to right, rgba(56, 189, 248, 0.05), transparent); border: 1px solid var(--border-soft); border-left: 4px solid var(--accent-color); padding: 2.5rem; border-radius: var(--radius-md); margin-bottom: 3rem;
+        }
+        .hub-title { font-size: 2.5rem; font-weight: 800; color: var(--text-main); letter-spacing: -1px; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 1rem; }
+        .hub-subtitle { font-size: 1.1rem; color: var(--text-body); font-weight: 400; }
+
+        /* SECTION HEADER */
+        .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; }
+        .section-title { font-size: 1.3rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; }
+        .section-title::before { content: '02'; font-size: 0.75rem; color: var(--accent-purple); font-weight: 700; background: rgba(167, 139, 250, 0.1); padding: 0.2rem 0.5rem; border-radius: 20px; }
+
+        /* LANGUAGES GRID */
+        .lang-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.5rem; margin-bottom: 4rem; }
+        
+        .lang-card {
+            background: var(--bg-surface); border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 1.5rem; display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        .lang-card::before {
+            content: ''; position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(255,255,255,0.05), transparent 70%); opacity: 0; transition: opacity 0.3s;
+        }
+        .lang-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .lang-card:hover::before { opacity: 1; }
+        
+        .lang-card.c-c:hover { border-color: rgba(59, 130, 246, 0.5); }
+        .lang-card.c-cpp:hover { border-color: rgba(37, 99, 235, 0.5); }
+        .lang-card.c-py:hover { border-color: rgba(234, 179, 8, 0.5); }
+        .lang-card.c-java:hover { border-color: rgba(239, 68, 68, 0.5); }
+        .lang-card.c-js:hover { border-color: rgba(245, 158, 11, 0.5); }
+
+        .l-icon { width: 50px; height: 50px; border-radius: 12px; background: #111; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 1rem; border: 1px solid var(--border-hard); }
+        .lang-card.c-c .l-icon { color: #60a5fa; border-color: rgba(96, 165, 250, 0.3); }
+        .lang-card.c-cpp .l-icon { color: #3b82f6; border-color: rgba(59, 130, 246, 0.3); }
+        .lang-card.c-py .l-icon { color: #facc15; border-color: rgba(250, 204, 21, 0.3); }
+        .lang-card.c-java .l-icon { color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
+        .lang-card.c-js .l-icon { color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); }
+        
+        .l-name { font-size: 1.1rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.3rem; }
+        .l-desc { font-size: 0.8rem; color: var(--text-muted); }
+
+        /* MAIN SECTIONS GRID */
+        .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 4rem; }
+        
+        .feature-card {
+            background: transparent; border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 2rem; transition: all 0.3s; position: relative;
+        }
+        .feature-card:hover { background: var(--bg-surface); border-color: var(--border-hard); }
+        .f-num { position: absolute; top: 1.5rem; right: 1.5rem; font-size: 2rem; font-weight: 800; color: rgba(255,255,255,0.03); line-height: 1; transition: color 0.3s; }
+        .feature-card:hover .f-num { color: rgba(255,255,255,0.1); }
+        
+        .f-icon { width: 44px; height: 44px; background: rgba(255,255,255,0.05); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-bottom: 1.5rem; color: var(--text-main); }
+        .f-title { font-size: 1.2rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.8rem; }
+        .f-desc { font-size: 0.95rem; color: var(--text-body); line-height: 1.5; }
+
+        /* Responsive */
+        @media(max-width: 1200px) {
+            .lang-grid { grid-template-columns: repeat(3, 1fr); }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- GLOBAL APP SIDEBAR -->
+    <div class="app-sidebar">
+        <div class="app-logo">
+            <div class="icon"><div class="dot"></div><div class="dot"></div></div>
+            ORVIX
+        </div>
+        
+        <div class="nav-label">Menu</div>
+        <nav class="app-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="dashboard.html" class="nav-link">Dashboard</a>
+            <a href="learn.html" class="nav-link active">Learn</a>
+            <a href="explore.html" class="nav-link">Explore</a>
+            <a href="team.html" class="nav-link">Team</a>
+            <a href="community.html" class="nav-link">Community</a>
+            <a href="contact.html" class="nav-link">Contact</a>
+        </nav>
+        
+        <button class="logout-btn" onclick="logout()">Log Out ↗</button>
+    </div>
+
+    <!-- MAIN APP AREA -->
+    <main class="app-main">
+        
+        <header class="app-topbar">
+            <div class="breadcrumb">
+                <a href="learn.html" class="bc-link">Learn</a>
+                <span class="bc-sep">/</span>
+                <span class="bc-current">Programming</span>
+            </div>
+            
+            <div class="topbar-right">
+                <button class="bell-btn">●</button>
+                <img src="https://i.pravatar.cc/150?img=47" class="top-avatar" id="top-avatar">
+            </div>
+        </header>
+
+        <div class="hub-content">
+            
+            <div class="hub-header">
+                <h1 class="hub-title">{ } Programming Hub</h1>
+                <p class="hub-subtitle">Learn concepts · Write code · Solve problems · Build projects</p>
+            </div>
+
+            <!-- 02 LANGUAGES -->
+            <div class="section-header">
+                <h2 class="section-title">Programming Languages</h2>
+            </div>
+            
+            <div class="lang-grid">
+                
+                <a href="course_c.html" class="lang-card c-c">
+                    <div class="l-icon">C</div>
+                    <h3 class="l-name">C Programming</h3>
+                    <p class="l-desc">Pointers, memory & systems</p>
+                </a>
+
+                <div class="lang-card c-cpp">
+                    <div class="l-icon">C++</div>
+                    <h3 class="l-name">C++</h3>
+                    <p class="l-desc">OOP, STL & algorithms</p>
+                </div>
+
+                <div class="lang-card c-py">
+                    <div class="l-icon" style="font-family: serif; font-style: italic;">Py</div>
+                    <h3 class="l-name">Python</h3>
+                    <p class="l-desc">Scripting & automation</p>
+                </div>
+
+                <div class="lang-card c-java">
+                    <div class="l-icon" style="font-family: serif;">J</div>
+                    <h3 class="l-name">Java</h3>
+                    <p class="l-desc">JVM & enterprise apps</p>
+                </div>
+
+                <div class="lang-card c-js">
+                    <div class="l-icon">JS</div>
+                    <h3 class="l-name">JavaScript</h3>
+                    <p class="l-desc">DOM, async & frontend</p>
+                </div>
+
+            </div>
+
+            <!-- CORE SECTIONS -->
+            <div class="section-header">
+                <h2 class="section-title" style="margin-top: 1rem;"><span style="display:none;"></span>Core Features</h2>
+            </div>
+
+            <div class="features-grid">
+                
+                <a href="#" class="feature-card">
+                    <div class="f-num">01</div>
+                    <div class="f-icon">🗺️</div>
+                    <h3 class="f-title">Learning Paths</h3>
+                    <p class="f-desc">Structured roadmaps from beginner to advanced. Follow the guided sequence.</p>
+                </a>
+
+                <a href="#" class="feature-card">
+                    <div class="f-num">03</div>
+                    <div class="f-icon">📚</div>
+                    <h3 class="f-title">Concept Library</h3>
+                    <p class="f-desc">Topic-wise lessons with examples, flowcharts, and visual explanations.</p>
+                </a>
+
+                <a href="playground.html" class="feature-card">
+                    <div class="f-num">04</div>
+                    <div class="f-icon">💻</div>
+                    <h3 class="f-title">Code Playground</h3>
+                    <p class="f-desc">Write, run and experiment with code directly in the browser using the ORVIX Studio.</p>
+                </a>
+
+                <a href="#" class="feature-card">
+                    <div class="f-num">05</div>
+                    <div class="f-icon">⚡</div>
+                    <h3 class="f-title">Practice & Challenges</h3>
+                    <p class="f-desc">Exercises, test cases, hints, and debugging problems to test your logic.</p>
+                </a>
+
+                <a href="#" class="feature-card">
+                    <div class="f-num">06</div>
+                    <div class="f-icon">🏗️</div>
+                    <h3 class="f-title">Projects</h3>
+                    <p class="f-desc">Build real applications using learned concepts to expand your portfolio.</p>
+                </a>
+
+                <a href="#" class="feature-card">
+                    <div class="f-num">07</div>
+                    <div class="f-icon">📈</div>
+                    <h3 class="f-title">Assessments</h3>
+                    <p class="f-desc">Quizzes, topic tests, and skill checks to validate your understanding.</p>
+                </a>
+
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        let supabaseClient;
+        async function initApp() {
+            try {
+                const res = await fetch('/api/config');
+                const config = await res.json();
+                supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+                verifyUser();
+            } catch(e) { console.error(e); }
+        }
+
+        async function verifyUser() {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient.auth.getSession();
+            if (error || !data.session) {
+                window.location.href = 'login.html'; 
+            }
+        }
+        initApp();
+
+        async function logout() {
+            if(supabaseClient) await supabaseClient.auth.signOut();
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

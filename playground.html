@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Studio | ORVIX</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Bulletproof Ace Editor Load -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-language_tools.js" type="text/javascript" charset="utf-8"></script>
+    
+    <style>
+        :root {
+            --bg-base: #000000;
+            --bg-surface: #0a0a0c;
+            --bg-editor: #1d1f21;
+            --bg-hover: #16161a;
+            --border-soft: #222222;
+            --border-hard: #333333;
+            --text-main: #ffffff;
+            --text-body: #a1a1aa;
+            --text-muted: #71717a;
+            --accent-color: #38bdf8;
+            --accent-purple: #a78bfa;
+            --accent-green: #10b981;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            background: var(--bg-base); 
+            color: var(--text-body); 
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        a { color: inherit; text-decoration: none; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        .ide-topbar {
+            height: 60px; background: var(--bg-base); border-bottom: 1px solid var(--border-soft); display: flex; justify-content: space-between; align-items: center; padding: 0 1.5rem; flex-shrink: 0;
+        }
+        .ide-brand { display: flex; align-items: center; gap: 0.8rem; font-weight: 700; font-size: 1.1rem; color: var(--text-main); letter-spacing: 1px; }
+        .ide-brand .icon { width: 22px; height: 22px; background: var(--text-main); border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+        .ide-brand .icon .dot { width: 4px; height: 4px; background: var(--bg-base); border-radius: 50%; margin: 1px; }
+
+        .ide-actions { display: flex; gap: 1rem; align-items: center; }
+        .nav-links { display: flex; gap: 1.5rem; margin-right: 1.5rem; border-right: 1px solid var(--border-hard); padding-right: 1.5rem; }
+        .n-link { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); transition: color 0.2s; }
+        .n-link:hover { color: var(--text-main); }
+        
+        .lang-select-wrapper { position: relative; }
+        .lang-select {
+            appearance: none; background: #111; border: 1px solid var(--border-hard); color: var(--text-main); padding: 0.5rem 2rem 0.5rem 1rem; border-radius: 6px; font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;
+        }
+        .lang-select:focus { border-color: var(--accent-color); }
+        .lang-select-wrapper::after { content: '▾'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+
+        .btn-run {
+            background: var(--accent-green); color: #000; border: none; padding: 0.5rem 1.2rem; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; font-family: inherit;
+        }
+        .btn-run:hover { background: #0ea5e9; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); }
+        .btn-run:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-run::before { content: '▶'; font-size: 0.7rem; }
+
+        .top-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-soft); margin-left: 0.5rem; cursor: pointer; }
+
+        .workspace { flex: 1; display: flex; overflow: hidden; }
+
+        .sidebar { width: 260px; background: var(--bg-surface); border-right: 1px solid var(--border-soft); display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 1rem; border-bottom: 1px solid var(--border-soft); font-size: 0.75rem; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
+        .s-actions { display: flex; gap: 0.5rem; }
+        .s-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; }
+        .s-btn:hover { color: var(--text-main); }
+        
+        .file-tree { padding: 0.5rem 0; flex: 1; overflow-y: auto; }
+        .folder { font-size: 0.85rem; font-weight: 600; color: var(--text-main); padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .folder::before { content: '▾'; font-size: 0.7rem; color: var(--text-muted); }
+        
+        .file { font-size: 0.85rem; color: var(--text-body); padding: 0.4rem 1rem 0.4rem 2.5rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s; }
+        .file:hover { background: var(--bg-hover); color: var(--text-main); }
+        .file.active { background: rgba(56, 189, 248, 0.1); color: var(--accent-color); border-right: 2px solid var(--accent-color); }
+        .file::before { content: '📄'; font-size: 0.8rem; filter: grayscale(1); opacity: 0.5; }
+        .file.active::before { filter: none; opacity: 1; }
+        
+        .file-delete { margin-left: auto; font-size: 0.7rem; opacity: 0; transition: opacity 0.2s; color: #ef4444; }
+        .file:hover .file-delete { opacity: 1; }
+
+        .editor-col { flex: 1; display: flex; flex-direction: column; background: var(--bg-editor); min-width: 0; }
+        
+        .editor-tabs { display: flex; border-bottom: 1px solid var(--border-soft); background: var(--bg-surface); overflow-x: auto; flex-shrink: 0; }
+        .e-tab { padding: 0.6rem 1.5rem; font-size: 0.85rem; color: var(--text-muted); border-right: 1px solid var(--border-soft); display: flex; align-items: center; gap: 0.8rem; background: var(--bg-base); }
+        .e-tab.active { background: var(--bg-editor); color: var(--text-main); border-top: 2px solid var(--accent-color); }
+
+        .editor-wrapper { flex: 1; position: relative; }
+        #editor-container { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; font-family: 'Fira Code', monospace !important; }
+        .ace_gutter { background: #1a1a1d !important; color: #4b5563 !important; border-right: 1px solid var(--border-soft) !important; }
+
+        .panel-area { height: 280px; background: var(--bg-base); border-top: 1px solid var(--border-soft); display: flex; flex-direction: column; flex-shrink: 0; }
+        .panel-header { display: flex; border-bottom: 1px solid var(--border-soft); background: var(--bg-surface); justify-content: space-between; align-items: center; padding-right: 1rem; flex-shrink: 0; }
+        
+        .p-tabs-wrap { display: flex; }
+        .p-tab { padding: 0.5rem 1.5rem; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .p-tab.active { color: var(--text-main); border-bottom: 2px solid var(--accent-color); }
+        
+        .btn-clear { background: none; border: none; color: var(--text-muted); font-size: 0.8rem; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; transition: color 0.2s; }
+        .btn-clear:hover { color: #ef4444; }
+
+        .panel-content { flex: 1; overflow: auto; padding: 1rem 1.5rem; font-family: 'Fira Code', monospace; font-size: 0.9rem; color: var(--text-body); background: var(--bg-base); white-space: pre-wrap; line-height: 1.5; }
+        
+        .term-prompt { color: var(--accent-green); margin-right: 0.5rem; font-weight: bold; }
+        .run-status { color: var(--accent-color); font-style: italic; }
+    </style>
+</head>
+<body>
+    <header class="ide-topbar">
+        <a href="dashboard.html" class="ide-brand">
+            <div class="icon"><div class="dot"></div><div class="dot"></div></div>
+            ORVIX Studio
+        </a>
+        
+        <div class="ide-actions">
+            <div class="nav-links">
+                <a href="learn.html" class="n-link">Learn Hub</a>
+                <a href="programming.html" class="n-link">Programming</a>
+                <a href="community.html" class="n-link">Community</a>
+            </div>
+            
+            <div class="lang-select-wrapper">
+                <select class="lang-select" id="lang-select">
+                    <option value="c">C (GCC 10.2)</option>
+                    <option value="cpp">C++ (G++ 10.2)</option>
+                    <option value="python">Python (3.10.0)</option>
+                    <option value="javascript">JavaScript (Node 18)</option>
+                    <option value="java">Java (15.0)</option>
+                </select>
+            </div>
+
+            <button class="btn-run" id="run-btn">Run Code</button>
+            <img src="https://i.pravatar.cc/150?img=47" class="top-avatar" title="Profile">
+        </div>
+    </header>
+
+    <div class="workspace">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span>EXPLORER</span>
+                <div class="s-actions">
+                    <button class="s-btn" id="new-file-btn" title="New File">➕ 📄</button>
+                </div>
+            </div>
+            
+            <div class="file-tree" id="file-tree">
+                <div class="folder">Playground Workspace</div>
+            </div>
+        </aside>
+
+        <div class="editor-col">
+            <main style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <div class="editor-tabs" id="editor-tabs">
+                </div>
+                
+                <div class="editor-wrapper">
+                    <div id="editor-container"></div>
+                </div>
+            </main>
+
+            <aside class="panel-area">
+                <div class="panel-header">
+                    <div class="p-tabs-wrap">
+                        <div class="p-tab active">Terminal Output</div>
+                    </div>
+                    <button class="btn-clear" id="clear-btn">Clear Terminal</button>
+                </div>
+                <div class="panel-content" id="output-console">
+<span class="term-prompt">orvix@studio:~$</span> Compiler environment initialized.
+Select a language, create files, and hit "Run Code".
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        let currentFilename = 'main.c';
+        let files = {
+            'main.c': '#include <stdio.h>\n\nint main() {\n    printf("Welcome to ORVIX Studio!\\n");\n    return 0;\n}'
+        };
+
+        const langConfigs = {
+            'c': { mode: 'ace/mode/c_cpp', version: '10.2.0', mainFile: 'main.c' },
+            'cpp': { mode: 'ace/mode/c_cpp', version: '10.2.0', mainFile: 'main.cpp' },
+            'python': { mode: 'ace/mode/python', version: '3.10.0', mainFile: 'main.py' },
+            'javascript': { mode: 'ace/mode/javascript', version: '18.15.0', mainFile: 'index.js' },
+            'java': { mode: 'ace/mode/java', version: '15.0.2', mainFile: 'Main.java' }
+        };
+
+        const defaultTemplates = {
+            'c': '#include <stdio.h>\n\nint main() {\n    printf("Hello from C!\\n");\n    return 0;\n}',
+            'cpp': '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello from C++!" << endl;\n    return 0;\n}',
+            'python': 'def main():\n    print("Hello from Python!")\n\nif __name__ == "__main__":\n    main()',
+            'javascript': 'console.log("Hello from JavaScript!");',
+            'java': 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello from Java!");\n    }\n}'
+        };
+
+        const langSelect = document.getElementById('lang-select');
+        const fileTree = document.getElementById('file-tree');
+        const editorTabs = document.getElementById('editor-tabs');
+        const outputConsole = document.getElementById('output-console');
+        const runBtn = document.getElementById('run-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const newFileBtn = document.getElementById('new-file-btn');
+
+        // Init Ace Editor
+        ace.require("ace/ext/language_tools");
+        const editor = ace.edit("editor-container");
+        editor.setTheme("ace/theme/tomorrow_night_eighties");
+        editor.setFontSize(15);
+        editor.setOptions({
+            enableBasicAutocompletion: true,
+            enableLiveAutocompletion: true,
+            showPrintMargin: false,
+            fontFamily: "'Fira Code', monospace"
+        });
+
+        window.addEventListener('resize', () => {
+            editor.resize();
+        });
+
+        editor.session.on('change', function() {
+            if (currentFilename) {
+                files[currentFilename] = editor.getValue();
+            }
+        });
+
+        function getLangMode(filename) {
+            if (filename.endsWith('.c') || filename.endsWith('.cpp') || filename.endsWith('.h')) return 'ace/mode/c_cpp';
+            if (filename.endsWith('.py')) return 'ace/mode/python';
+            if (filename.endsWith('.js')) return 'ace/mode/javascript';
+            if (filename.endsWith('.java')) return 'ace/mode/java';
+            return 'ace/mode/text';
+        }
+
+        function openFile(filename) {
+            currentFilename = filename;
+            editor.session.setMode(getLangMode(filename));
+            editor.setValue(files[filename] || "", -1); 
+            renderFileTree();
+            renderTabs();
+        }
+
+        newFileBtn.addEventListener('click', () => {
+            const filename = prompt("Enter new file name (e.g. utils.c):");
+            if (filename && filename.trim() !== '') {
+                if (files[filename]) {
+                    alert("File already exists!");
+                    return;
+                }
+                files[filename] = "";
+                openFile(filename);
+            }
+        });
+
+        window.deleteFile = function(filename, e) {
+            e.stopPropagation();
+            if (Object.keys(files).length === 1) {
+                alert("Cannot delete the last file in the workspace.");
+                return;
+            }
+            if (confirm("Are you sure you want to delete " + filename + "?")) {
+                delete files[filename];
+                if (currentFilename === filename) {
+                    openFile(Object.keys(files)[0]);
+                } else {
+                    renderFileTree();
+                }
+            }
+        }
+
+        window.triggerOpenFile = function(filename) {
+            openFile(filename);
+        }
+
+        function renderFileTree() {
+            let html = '<div class="folder">Playground Workspace</div>';
+            for (const filename of Object.keys(files)) {
+                const isActive = (filename === currentFilename) ? 'active' : '';
+                html += '<div class="file ' + isActive + '" onclick="triggerOpenFile(\'' + filename + '\')">' +
+                            filename +
+                            '<span class="file-delete" onclick="deleteFile(\'' + filename + '\', event)" title="Delete File">🗑</span>' +
+                         '</div>';
+            }
+            fileTree.innerHTML = html;
+        }
+
+        function renderTabs() {
+            editorTabs.innerHTML = '<div class="e-tab active">' + currentFilename + '</div>';
+        }
+
+        langSelect.addEventListener('change', (e) => {
+            const langKey = e.target.value;
+            const config = langConfigs[langKey];
+            
+            files = {};
+            files[config.mainFile] = defaultTemplates[langKey];
+            
+            openFile(config.mainFile);
+            outputConsole.innerHTML += '<br><span class="term-prompt">orvix@studio:~$</span> Switched environment to ' + e.target.options[e.target.selectedIndex].text;
+            outputConsole.scrollTop = outputConsole.scrollHeight;
+        });
+
+        // Initialize UI
+        renderFileTree();
+        renderTabs();
+        openFile(currentFilename);
+
+        clearBtn.addEventListener('click', () => {
+            outputConsole.innerHTML = '';
+        });
+
+        runBtn.addEventListener('click', async () => {
+            const langKey = langSelect.value;
+            const config = langConfigs[langKey];
+
+            runBtn.innerHTML = 'Running...';
+            runBtn.disabled = true;
+
+            outputConsole.innerHTML += '<br><br><span class="term-prompt">orvix@studio:~$</span> <span class="run-status">Compiling and executing workspace...</span><br>';
+            outputConsole.scrollTop = outputConsole.scrollHeight;
+
+            const filesToExecute = Object.keys(files).map(name => {
+                return { name: name, content: files[name] };
+            });
+
+            try {
+                // Local Node.js proxy endpoint
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        language: langKey,
+                        version: config.version,
+                        files: filesToExecute
+                    })
+                });
+
+                const data = await response.json();
+                let outHTML = '';
+
+                if (data.message) {
+                    outHTML += '<span style="color: #ef4444;">API Error: ' + data.message + '</span>';
+                } else if (data.run) {
+                    if (data.run.stderr) {
+                        outHTML += '<span style="color: #ef4444;">' + data.run.stderr.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+                    }
+                    if (data.run.stdout) {
+                        outHTML += '<span style="color: var(--text-main);">' + data.run.stdout.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+                    }
+                    if (data.run.code !== 0 && !data.run.stderr && !data.run.stdout) {
+                        outHTML += '<br><span style="color: #ef4444;">Process exited with code ' + data.run.code + '</span>';
+                    }
+                } else {
+                    outHTML += '<span style="color: #ef4444;">Unknown error occurred.</span>';
+                }
+
+                outputConsole.innerHTML += outHTML;
+
+            } catch (error) {
+                outputConsole.innerHTML += '<span style="color: #ef4444;">Error: Failed to connect to the backend compilation server.</span>';
+            }
+
+            runBtn.innerHTML = 'Run Code';
+            runBtn.disabled = false;
+            outputConsole.scrollTop = outputConsole.scrollHeight;
+        });
+    </script>
+</body>
+</html>

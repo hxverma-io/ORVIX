@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication | ORVIX</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            width: 100%;
+        }
+        .auth-form input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #333;
+            color: #fff;
+            font-family: inherit;
+            font-size: 1.1rem;
+            padding: 1rem 0;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .auth-form input:focus {
+            border-bottom-color: #fff;
+        }
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 2.5rem 0 1.5rem 0;
+            color: #555;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+        .auth-divider::before, .auth-divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #222;
+        }
+        .auth-divider:not(:empty)::before { margin-right: 1rem; }
+        .auth-divider:not(:empty)::after { margin-left: 1rem; }
+        
+        .oauth-btn {
+            background: transparent;
+            color: #fff;
+            border: 1px solid #333;
+            padding: 1rem;
+            border-radius: 50px;
+            font-weight: 400;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .oauth-btn:hover {
+            background: #111;
+            border-color: #555;
+        }
+        .toggle-auth {
+            text-align: center;
+            margin-top: 3rem;
+            color: #888;
+            font-size: 0.95rem;
+            width: 100%;
+        }
+        .toggle-auth span {
+            color: #fff;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .msg-box {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            display: none;
+            width: 100%;
+            text-align: center;
+        }
+        .msg-error { background: rgba(255, 50, 50, 0.1); color: #ff5555; border: 1px solid rgba(255,50,50,0.2); }
+        .msg-success { background: rgba(50, 255, 50, 0.1); color: #55ff55; border: 1px solid rgba(50,255,50,0.2); }
+    </style>
+</head>
+<body>
+    <nav class="bento-nav">
+        <div class="logo-container">
+            <div class="dots-logo">
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+            <span class="logo-text">ORVIX</span>
+        </div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+        </div>
+        <a href="index.html" class="nav-btn">← Back to Home</a>
+    </nav>
+
+    <main class="bento-main">
+        <div class="bento-layout">
+            
+            <!-- Left Side: Massive Branding -->
+            <div class="bento-box bg-white title-box" style="grid-column: 1 / 3; grid-row: 1 / 4; padding: 4rem; justify-content: space-between;">
+                <div>
+                    <h1 id="dynamic-title" style="font-size: 5rem; letter-spacing: -2px;">Welcome<br>back.</h1>
+                    <p id="dynamic-subtitle" style="font-size: 1.2rem; color: #555; margin-top: 1rem; max-width: 80%;">Log in to access your premium courses, labs, and the developer community.</p>
+                </div>
+                
+                <div class="cyber-sphere" style="filter: invert(1); width: 120px; height: 120px; border-color: #000;"></div>
+            </div>
+
+            <!-- Right Side: Auth Form -->
+            <div class="bento-box bg-black desc-box" style="grid-column: 3 / 5; grid-row: 1 / 4; padding: 4rem !important; align-items: flex-start; justify-content: center;">
+                
+                <form class="auth-form" id="auth-form">
+                    <input type="email" id="email" placeholder="Email Address" required>
+                    <input type="password" id="password" placeholder="Password" required>
+                    <button type="submit" class="get-started-btn" id="submit-btn" style="margin-top: 2rem; width: 100%; border: none; cursor: pointer; text-align: center;">Continue ↗</button>
+                </form>
+
+                <div id="auth-message" class="msg-box"></div>
+
+                <div class="auth-divider">or continue with</div>
+
+                <div class="oauth-buttons" style="display: flex; gap: 1rem; width: 100%;">
+                    <button type="button" class="oauth-btn" onclick="signInWithProvider('google')" style="flex: 1;">
+                        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" width="20" height="20" alt="Google">
+                        Continue with Google
+                    </button>
+                </div>
+
+                <div class="toggle-auth">
+                    <span id="toggle-mode-text">Don't have an account? <b>Sign up</b></span>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        let supabaseClient;
+        let connectionError = null;
+
+        async function initApp() {
+            try {
+                const res = await fetch('/api/config');
+                const config = await res.json();
+                supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+                checkSession();
+            } catch (e) {
+                connectionError = "Database configuration is invalid. Please start the backend server.";
+                console.error(connectionError, e);
+                showMessage("System Error: " + connectionError, true);
+            }
+        }
+        initApp();
+
+        let isLoginMode = true;
+        
+        const form = document.getElementById('auth-form');
+        const title = document.getElementById('dynamic-title');
+        const subtitle = document.getElementById('dynamic-subtitle');
+        const toggleBtn = document.getElementById('toggle-mode-text');
+        const msgBox = document.getElementById('auth-message');
+        const submitBtn = document.getElementById('submit-btn');
+
+        function showMessage(msg, isError = false) {
+            msgBox.innerHTML = msg;
+            msgBox.className = 'msg-box ' + (isError ? 'msg-error' : 'msg-success');
+            msgBox.style.display = 'block';
+        }
+
+
+
+        // Check if user is already logged in
+        async function checkSession() {
+            if (!supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient.auth.getSession();
+                if (data && data.session) {
+                    window.location.href = 'dashboard.html'; // Redirect to dashboard if already logged in
+                }
+            } catch (e) {
+                console.warn("Session check failed", e);
+            }
+        }
+
+        // Toggle between Log In and Sign Up modes
+        toggleBtn.addEventListener('click', () => {
+            isLoginMode = !isLoginMode;
+            title.innerHTML = isLoginMode ? 'Welcome<br>back.' : 'Join the<br>revolution.';
+            subtitle.textContent = isLoginMode 
+                ? 'Log in to access your premium courses, labs, and the developer community.' 
+                : 'Create an account to start building and mastering your skills today.';
+            toggleBtn.innerHTML = isLoginMode ? "Don't have an account? <b>Sign up</b>" : "Already have an account? <b>Log in</b>";
+            if (!connectionError) msgBox.style.display = 'none';
+        });
+
+        // Email & Password Auth
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!supabaseClient) {
+                showMessage(connectionError || "Database not connected. Please fix your Supabase keys.", true);
+                return;
+            }
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            submitBtn.textContent = 'Processing...';
+
+            try {
+                if (isLoginMode) {
+                    // LOG IN
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) {
+                        showMessage(error.message, true);
+                    } else if (data && data.session) {
+                        showMessage('Login successful! Redirecting to Dashboard...');
+                        setTimeout(() => window.location.href = 'dashboard.html', 1000);
+                    } else {
+                        showMessage('Login failed. Please check your credentials.', true);
+                    }
+                } else {
+                    // SIGN UP
+                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                    if (error) {
+                        showMessage(error.message, true);
+                    } else {
+                        showMessage('Signup successful! Check your email to confirm your account.');
+                    }
+                }
+            } catch (error) {
+                showMessage("Authentication error: " + error.message, true);
+            }
+            
+            submitBtn.textContent = 'Continue ↗';
+        });
+
+        // OAuth Providers (Google & GitHub)
+        async function signInWithProvider(provider) {
+            if (!supabaseClient) {
+                showMessage(connectionError || "Database not connected. Please fix your Supabase keys.", true);
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                    provider: provider,
+                    options: {
+                        redirectTo: window.location.origin + '/dashboard.html'
+                    }
+                });
+                
+                if (error) {
+                    showMessage(error.message + " <br><small>Make sure " + provider + " is enabled in Supabase Providers.</small>", true);
+                }
+            } catch (err) {
+                showMessage("OAuth error: " + err.message, true);
+            }
+        }
+    </script>
+</body>
+</html>

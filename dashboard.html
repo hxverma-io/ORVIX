@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Dashboard | ORVIX</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-base: #000000;      
+            --bg-surface: #0a0a0c;   
+            --bg-hover: #121214;     
+            --border-soft: #222222;  
+            --border-hard: #333333;
+            --text-main: #ffffff;    
+            --text-body: #a1a1aa;    
+            --text-muted: #71717a;   
+            --accent-color: #38bdf8; 
+            --accent-glow: rgba(56, 189, 248, 0.15);
+            --accent-purple: #a78bfa;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        
+        body { background: var(--bg-base); color: var(--text-body); height: 100vh; display: flex; overflow: hidden; }
+        a { color: var(--accent-color); text-decoration: none; transition: color 0.2s; }
+        a:hover { color: #7dd3fc; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        .app-sidebar { width: 240px; background: var(--bg-base); border-right: 1px solid var(--border-soft); display: flex; flex-direction: column; padding: 2rem 1.5rem; z-index: 10; }
+        .app-logo { display: flex; align-items: center; gap: 0.8rem; font-weight: 700; font-size: 1.4rem; color: var(--text-main); letter-spacing: 1px; margin-bottom: 3rem; }
+        .app-logo .icon { width: 28px; height: 28px; background: var(--text-main); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+        .app-logo .icon .dot { width: 6px; height: 6px; background: var(--bg-base); border-radius: 50%; margin: 1px; }
+
+        .nav-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin-bottom: 1rem; padding-left: 0.5rem; }
+        .app-nav { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; }
+        .nav-link { padding: 0.7rem 1rem; border-radius: var(--radius-sm); color: var(--text-body); font-weight: 500; font-size: 0.95rem; transition: all 0.2s; display: flex; align-items: center; gap: 0.8rem; }
+        .nav-link::before { content: '✦'; font-size: 0.7rem; color: transparent; transition: color 0.2s; }
+        .nav-link:hover { background: var(--bg-hover); color: var(--text-main); }
+        .nav-link.active { background: #111; color: var(--text-main); border: 1px solid var(--border-soft); }
+        .nav-link.active::before { color: var(--accent-color); }
+
+        .logout-btn { background: transparent; border: 1px solid var(--border-soft); color: var(--text-body); padding: 0.8rem; border-radius: var(--radius-sm); font-family: inherit; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-top: auto; }
+        .logout-btn:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+        .app-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #050505; }
+        .app-topbar { height: 70px; border-bottom: 1px solid var(--border-soft); display: flex; justify-content: space-between; align-items: center; padding: 0 2rem; background: var(--bg-base); z-index: 5; }
+        .search-input { background: var(--bg-surface); border: 1px solid var(--border-soft); border-radius: 20px; padding: 0.5rem 1.2rem; width: 300px; color: var(--text-main); font-size: 0.9rem; font-family: inherit; transition: all 0.2s; outline: none; }
+        .search-input:focus { border-color: var(--text-muted); }
+        .topbar-right { display: flex; align-items: center; gap: 1.5rem; }
+        .bell-btn { background: none; border: none; color: var(--text-body); font-size: 1.2rem; cursor: pointer; }
+        .top-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-soft); }
+
+        .dashboard-content { flex: 1; overflow-y: auto; padding: 3rem; }
+        .portfolio-layout { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 300px 1fr; gap: 4rem; align-items: start; }
+
+        .profile-col { position: sticky; top: 0; }
+        .avatar-main { width: 100%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-soft); margin-bottom: 1.5rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .profile-name { font-size: 2rem; font-weight: 700; color: var(--text-main); letter-spacing: -0.5px; line-height: 1.2; }
+        .profile-username { font-size: 1.1rem; font-weight: 400; color: var(--text-muted); margin-bottom: 1.5rem; }
+        .profile-bio { font-size: 1rem; line-height: 1.6; color: var(--text-body); margin-bottom: 1.5rem; }
+        
+        .btn-edit { width: 100%; background: var(--bg-surface); border: 1px solid var(--border-soft); color: var(--text-main); padding: 0.7rem; border-radius: var(--radius-sm); font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-bottom: 2rem; font-family: inherit; }
+        .btn-edit:hover { background: var(--text-main); color: var(--bg-base); }
+
+        .meta-list { display: flex; flex-direction: column; gap: 1rem; font-size: 0.95rem; margin-bottom: 2.5rem; border-top: 1px solid var(--border-soft); padding-top: 2rem; }
+        .meta-item { display: flex; align-items: center; gap: 1rem; color: var(--text-body); }
+        .meta-icon { color: var(--text-muted); font-size: 0.8rem; }
+
+        .section-heading { font-size: 0.9rem; font-weight: 600; color: var(--text-main); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1.5rem; }
+        .orgs-grid { display: flex; gap: 1rem; }
+        .org-box { width: 50px; height: 50px; border-radius: 12px; background: var(--bg-surface); border: 1px solid var(--border-soft); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--text-main); font-size: 0.9rem; transition: border-color 0.2s; cursor: pointer; }
+        .org-box:hover { border-color: var(--text-main); }
+
+        .content-col { display: flex; flex-direction: column; gap: 3rem; }
+        .content-tabs { display: flex; gap: 2rem; border-bottom: 1px solid var(--border-soft); padding-bottom: 1rem; margin-bottom: 1rem; }
+        .tab { color: var(--text-body); font-weight: 500; font-size: 1rem; cursor: pointer; position: relative; transition: color 0.2s; }
+        .tab:hover { color: var(--text-main); }
+        .tab.active { color: var(--text-main); font-weight: 600; }
+        .tab.active::after { content: ''; position: absolute; bottom: -1rem; left: 0; width: 100%; height: 2px; background: var(--text-main); }
+        .tab-badge { background: var(--border-hard); color: var(--text-main); font-size: 0.7rem; padding: 0.1rem 0.5rem; border-radius: 10px; margin-left: 0.4rem; font-weight: 600; }
+
+        .premium-banner { position: relative; background: #070709; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 4rem; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .bg-grid { position: absolute; inset: 0; background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 32px 32px; z-index: 1; }
+        .banner-glow { position: absolute; top: -50%; left: 0; width: 100%; height: 200%; background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08), transparent 60%); z-index: 1; }
+        .banner-content { position: relative; z-index: 2; }
+        .b-tag { display: inline-block; border: 1px solid var(--accent-color); color: var(--accent-color); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; letter-spacing: 1px; margin-bottom: 1.5rem; background: rgba(56,189,248,0.1); }
+        .b-title { font-size: 3.5rem; font-weight: 800; color: var(--text-main); letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 0.5rem; }
+        .b-subtitle { font-size: 1.2rem; color: var(--text-body); max-width: 600px; line-height: 1.5; margin-bottom: 2.5rem; }
+        
+        .tech-badges { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+        .t-badge { background: #111; border: 1px solid var(--border-soft); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; text-transform: capitalize; }
+        .t-badge::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+        .t-badge:nth-child(1n)::before { background: #61dafb; }
+        .t-badge:nth-child(2n)::before { background: #3178c6; }
+        .t-badge:nth-child(3n)::before { background: #339933; }
+        .t-badge:nth-child(4n)::before { background: #e34f26; }
+
+        .content-section h2 { font-size: 1.4rem; font-weight: 600; color: var(--text-main); margin-bottom: 1.5rem; }
+        .about-text { font-size: 1.05rem; line-height: 1.8; color: var(--text-body); margin-bottom: 2rem; }
+        
+        .activity-list { display: flex; flex-direction: column; gap: 1rem; }
+        .activity-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--bg-surface); border: 1px solid var(--border-soft); border-radius: var(--radius-md); transition: background 0.2s; }
+        .activity-item:hover { background: var(--bg-hover); }
+        .act-icon { width: 40px; height: 40px; border-radius: 8px; background: #111; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .act-text { font-size: 0.95rem; color: var(--text-body); flex: 1; }
+        .act-text b { color: var(--text-main); font-weight: 500; }
+        .act-date { font-size: 0.85rem; color: var(--text-muted); }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem; }
+        .stat-card { background: var(--bg-surface); border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 2rem; display: flex; flex-direction: column; justify-content: center; }
+        .stat-list { display: flex; flex-direction: column; gap: 1.2rem; }
+        .stat-row { display: flex; justify-content: space-between; align-items: center; font-size: 1rem; color: var(--text-body); }
+        .stat-row b { color: var(--text-main); font-size: 1.1rem; }
+        
+        .circle-stats-container { display: flex; justify-content: space-around; align-items: center; height: 100%; }
+        .circle-stat { position: relative; width: 140px; height: 140px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 4px solid var(--border-soft); }
+        .circle-stat::before { content: ''; position: absolute; top: -4px; left: -4px; width: 100%; height: 100%; border-radius: 50%; border: 4px solid transparent; border-top-color: var(--accent-color); transform: rotate(-45deg); }
+        .circle-stat.purple::before { border-top-color: var(--accent-purple); }
+        
+        .c-val { font-size: 2.2rem; font-weight: 700; color: var(--text-main); line-height: 1; margin-bottom: 0.3rem; }
+        .c-lbl { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; text-align: center; }
+
+        .projects-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .project-card { background: transparent; border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 1.5rem; transition: border-color 0.2s; display: flex; flex-direction: column; }
+        .project-card:hover { border-color: var(--text-muted); }
+        .p-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .p-title { font-size: 1.2rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem; }
+        .p-title::before { content: '✦'; color: var(--accent-color); font-size: 1rem; }
+        .p-vis { border: 1px solid var(--border-hard); color: var(--text-muted); font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 500; }
+        .p-desc { font-size: 0.95rem; color: var(--text-body); line-height: 1.5; margin-bottom: 2rem; flex: 1; }
+        .p-footer { display: flex; gap: 1.5rem; font-size: 0.85rem; color: var(--text-muted); align-items: center; }
+        .p-lang { display: flex; align-items: center; gap: 0.4rem; }
+        .lang-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* MODAL STYLES */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 100; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content { background: #0d0d0f; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); width: 95%; max-width: 600px; transform: translateY(20px); transition: transform 0.3s; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+        .modal-header { padding: 1.5rem; border-bottom: 1px solid var(--border-soft); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { font-size: 1.2rem; color: var(--text-main); font-weight: 600; }
+        .btn-close { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.2s; }
+        .btn-close:hover { color: var(--text-main); }
+        
+        .modal-body { padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; max-height: 70vh; overflow-y: auto; }
+        .full-width { grid-column: 1 / -1; }
+        
+        .avatar-upload-area { display: flex; align-items: center; gap: 1.5rem; padding: 1rem; background: var(--bg-surface); border: 1px dashed var(--border-hard); border-radius: var(--radius-md); }
+        .avatar-preview-mini { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-soft); }
+        .upload-controls { display: flex; flex-direction: column; gap: 0.5rem; }
+        .btn-upload-lbl { background: var(--bg-hover); border: 1px solid var(--border-soft); color: var(--text-main); padding: 0.4rem 0.8rem; border-radius: var(--radius-sm); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; display: inline-block; text-align: center; }
+        .btn-upload-lbl:hover { border-color: var(--accent-color); color: var(--accent-color); }
+
+        .input-group { display: flex; flex-direction: column; gap: 0.4rem; }
+        .input-group label { font-size: 0.85rem; color: var(--text-body); font-weight: 500; }
+        .input-group input, .input-group textarea { background: var(--bg-surface); border: 1px solid var(--border-soft); color: var(--text-main); padding: 0.8rem 1rem; border-radius: var(--radius-sm); font-family: inherit; font-size: 0.95rem; outline: none; transition: border-color 0.2s; width: 100%; }
+        .input-group input:focus, .input-group textarea:focus { border-color: var(--accent-color); }
+        
+        .modal-footer { padding: 1.5rem; border-top: 1px solid var(--border-soft); display: flex; justify-content: flex-end; gap: 1rem; }
+        .btn-cancel { background: transparent; border: 1px solid var(--border-soft); color: var(--text-body); padding: 0.6rem 1.2rem; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; font-weight: 500; transition: all 0.2s; }
+        .btn-cancel:hover { background: var(--bg-surface); color: var(--text-main); }
+        .btn-save { background: var(--accent-color); border: none; color: #000; padding: 0.6rem 1.5rem; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+        .btn-save:hover { background: #0ea5e9; transform: translateY(-1px); }
+    </style>
+</head>
+<body>
+
+    <div class="app-sidebar">
+        <div class="app-logo">
+            <div class="icon"><div class="dot"></div><div class="dot"></div></div>
+            ORVIX
+        </div>
+        
+        <div class="nav-label">Menu</div>
+        <nav class="app-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="dashboard.html" class="nav-link active">Dashboard</a>
+            <a href="learn.html" class="nav-link">Learn</a>
+            <a href="programming.html" class="nav-link">Explore</a>
+            <a href="team.html" class="nav-link">Team</a>
+            <a href="community.html" class="nav-link">Community</a>
+            <a href="contact.html" class="nav-link">Contact</a>
+        </nav>
+        
+        <button class="logout-btn" onclick="logout()">Log Out ↗</button>
+    </div>
+
+    <main class="app-main">
+        <header class="app-topbar">
+            <input type="text" class="search-input" placeholder="Search projects, developers, code...">
+            <div class="topbar-right">
+                <button class="bell-btn">●</button>
+                <img src="https://i.pravatar.cc/150?img=47" class="top-avatar" id="top-avatar">
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <div class="portfolio-layout">
+                
+                <!-- PROFILE SIDEBAR -->
+                <div class="profile-col">
+                    <img src="https://i.pravatar.cc/150?img=47" class="avatar-main" id="main-avatar">
+                    <h1 class="profile-name" id="profile-name">Developer Name</h1>
+                    <h2 class="profile-username" id="profile-username">@developer</h2>
+                    
+                    <p class="profile-bio" id="profile-bio">
+                        Building the future of digital infrastructure. Specializing in high-performance web applications and distributed systems.
+                    </p>
+                    
+                    <button class="btn-edit" onclick="openEditModal()">Edit Profile</button>
+                    
+                    <div class="meta-list">
+                        <div class="meta-item"><span class="meta-icon">●</span> <span id="display-role">Software Engineer at ORVIX</span></div>
+                        <div class="meta-item"><span class="meta-icon">●</span> <span id="display-location">San Francisco, CA</span></div>
+                        <div class="meta-item"><span class="meta-icon">●</span> <a href="#" id="display-website" target="_blank">developer.orvix.io</a></div>
+                    </div>
+                    
+                    <div class="section-heading">Organizations</div>
+                    <div class="orgs-grid">
+                        <div class="org-box">OX</div>
+                        <div class="org-box" style="border-color: #38bdf8; color: #38bdf8;">OSS</div>
+                    </div>
+                </div>
+
+                <!-- MAIN CONTENT (PORTFOLIO) -->
+                <div class="content-col">
+                    
+                    <div class="content-tabs">
+                        <div class="tab active">Overview</div>
+                        <div class="tab">Projects <span class="tab-badge">14</span></div>
+                        <div class="tab">Activity</div>
+                        <div class="tab">Endorsements <span class="tab-badge">42</span></div>
+                    </div>
+
+                    <!-- PREMIUM BANNER -->
+                    <div class="premium-banner">
+                        <div class="bg-grid"></div>
+                        <div class="banner-glow"></div>
+                        <div class="banner-content">
+                            <div class="b-tag">PORTFOLIO OVERVIEW</div>
+                            <h1 class="b-title" id="banner-title">Full Stack Engineer</h1>
+                            <p class="b-subtitle" id="banner-subtitle">Passionate about open source, system architecture, and crafting beautiful, performant user interfaces.</p>
+                            
+                            <div class="tech-badges" id="display-tech">
+                                <span class="t-badge tb-react">React</span>
+                                <span class="t-badge tb-ts">TypeScript</span>
+                                <span class="t-badge tb-node">Node.js</span>
+                                <span class="t-badge tb-pg">PostgreSQL</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="content-section">
+                        <p class="about-text">
+                            I am a software engineer focused on building scalable cloud infrastructure and intuitive web applications. Currently, I'm contributing to the core ORVIX learning platform, optimizing database query planning, and exploring the depths of React Server Components.
+                        </p>
+
+                        <div class="activity-list">
+                            <div class="activity-item">
+                                <div class="act-icon">✦</div>
+                                <div class="act-text">Merged PR <b>#402</b> in <b>orvix/core-engine</b></div>
+                                <div class="act-date">2 hours ago</div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="act-icon">✦</div>
+                                <div class="act-text">Published article <b>Advanced State Management</b></div>
+                                <div class="act-date">Yesterday</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-list">
+                                <div class="stat-row">Total Commits (2024) <b>1,402</b></div>
+                                <div class="stat-row">Pull Requests Merged <b>86</b></div>
+                                <div class="stat-row">Issues Resolved <b>124</b></div>
+                                <div class="stat-row" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-soft);">Projects Contributed <b>14</b></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="circle-stats-wrap">
+                                <div class="circle-stat">
+                                    <div class="c-val" style="color: var(--accent-color);">2.7k</div>
+                                    <div class="c-lbl">Contributions</div>
+                                </div>
+                                <div class="circle-stat purple" style="margin-left: 2rem;">
+                                    <div class="c-val" style="color: var(--accent-purple);">119</div>
+                                    <div class="c-lbl">Day Streak</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="content-section" style="margin-top: 2rem;">
+                        <h2 style="font-size: 1.2rem; margin-bottom: 1.5rem;">Featured Projects</h2>
+                        <div class="projects-grid">
+                            
+                            <div class="project-card">
+                                <div class="p-header">
+                                    <a href="#" class="p-title">orvix-platform</a>
+                                    <span class="p-vis">Public</span>
+                                </div>
+                                <p class="p-desc">The main repository for the next-generation developer learning platform. Features real-time code collaboration.</p>
+                                <div class="p-footer">
+                                    <span class="p-lang"><span class="lang-dot" style="background: #3178c6;"></span>TypeScript</span>
+                                    <span>★ 1.2k</span>
+                                </div>
+                            </div>
+
+                            <div class="project-card">
+                                <div class="p-header">
+                                    <a href="#" class="p-title">raft-go</a>
+                                    <span class="p-vis">Public</span>
+                                </div>
+                                <p class="p-desc">An educational implementation of the Raft consensus algorithm built entirely from scratch in Go.</p>
+                                <div class="p-footer">
+                                    <span class="p-lang"><span class="lang-dot" style="background: #00add8;"></span>Go</span>
+                                    <span>★ 840</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ULTIMATE EDIT PROFILE MODAL -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Your Profile</h3>
+                <button class="btn-close" onclick="closeEditModal()">×</button>
+            </div>
+            <div class="modal-body">
+                
+                <!-- Avatar Upload Section -->
+                <div class="full-width avatar-upload-area">
+                    <img src="https://i.pravatar.cc/150?img=47" id="edit-avatar-preview" class="avatar-preview-mini">
+                    <div class="upload-controls">
+                        <span style="font-size: 0.9rem; font-weight: 500; color: #fff;">Profile Picture</span>
+                        <span style="font-size: 0.75rem; color: #71717a;">Square image, max 2MB</span>
+                        <label for="edit-avatar-file" class="btn-upload-lbl">Upload New Image</label>
+                        <input type="file" id="edit-avatar-file" accept="image/*" style="display:none">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="edit-username" placeholder="developer">
+                </div>
+                
+                <div class="input-group">
+                    <label>Full Name</label>
+                    <input type="text" id="edit-name" placeholder="John Doe">
+                </div>
+                
+                <div class="input-group full-width">
+                    <label>Headline / Role</label>
+                    <input type="text" id="edit-role" placeholder="Full Stack Engineer">
+                </div>
+                
+                <div class="input-group">
+                    <label>Location</label>
+                    <input type="text" id="edit-location" placeholder="San Francisco, CA">
+                </div>
+                
+                <div class="input-group">
+                    <label>Website</label>
+                    <input type="text" id="edit-website" placeholder="developer.orvix.io">
+                </div>
+
+                <div class="input-group full-width">
+                    <label>Tech Stack (Comma separated)</label>
+                    <input type="text" id="edit-tech" placeholder="React, Node.js, Python, AWS">
+                </div>
+                
+                <div class="input-group full-width">
+                    <label>Bio / About Me</label>
+                    <textarea id="edit-bio" rows="3" placeholder="Building the future..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+                <button class="btn-save" onclick="saveProfile()" id="save-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // SUPABASE AUTH & DYNAMIC DATA
+        let supabaseClient;
+        let currentAvatarBase64 = null; 
+
+        async function initApp() {
+            try {
+                const res = await fetch('/api/config');
+                const config = await res.json();
+                supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+                verifyUser();
+            } catch (err) {
+                console.error("Failed to load secure config");
+            }
+        }
+
+        async function verifyUser() {
+            if (!supabaseClient) return;
+            const { data, error } = await supabaseClient.auth.getSession();
+            if (error || !data.session) {
+                window.location.href = 'login.html'; 
+            } else {
+                const email = data.session.user.email;
+                const meta = data.session.user.user_metadata || {};
+                
+                if(email) {
+                    const emailNamePart = email.split('@')[0];
+                    const cleanName = emailNamePart.replace(/[0-9.]/g, ' ').trim();
+                    const defaultName = cleanName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    
+                    const username = meta.username || emailNamePart.toLowerCase();
+                    const fullName = meta.full_name || defaultName || 'Developer';
+                    const avatarUrl = meta.avatar_url || 'https://i.pravatar.cc/150?img=47';
+                    const role = meta.role || 'Software Engineer at ORVIX';
+                    const location = meta.location || 'San Francisco, CA';
+                    const website = meta.website || 'developer.orvix.io';
+                    const techStack = meta.tech_stack || 'React, TypeScript, Node.js, PostgreSQL';
+                    const bio = meta.bio || 'Building the future of digital infrastructure. Specializing in high-performance web applications and distributed systems.';
+                    
+                    // Keep track of active avatar to not overwrite unless changed
+                    currentAvatarBase64 = avatarUrl;
+                    
+                    // Apply to Dashboard UI
+                    document.getElementById('profile-username').textContent = '@' + username;
+                    document.getElementById('profile-name').textContent = fullName;
+                    document.getElementById('main-avatar').src = avatarUrl;
+                    document.getElementById('top-avatar').src = avatarUrl;
+                    document.getElementById('display-role').textContent = role;
+                    document.getElementById('display-location').textContent = location;
+                    document.getElementById('display-website').textContent = website;
+                    document.getElementById('display-website').href = website.startsWith('http') ? website : 'https://' + website;
+                    document.getElementById('profile-bio').textContent = bio;
+                    
+                    document.getElementById('banner-title').textContent = role.split(' at ')[0] || role;
+                    document.getElementById('banner-subtitle').textContent = bio;
+
+                    // Apply Tech Badges Dynamically
+                    const techContainer = document.getElementById('display-tech');
+                    techContainer.innerHTML = '';
+                    const techArr = techStack.split(',').map(t => t.trim()).filter(t => t);
+                    for(const tech of techArr) {
+                        techContainer.innerHTML += '<span class="t-badge">' + tech + '</span>';
+                    }
+
+                    // Fill Modal Inputs
+                    document.getElementById('edit-avatar-preview').src = avatarUrl;
+                    document.getElementById('edit-username').value = username;
+                    document.getElementById('edit-name').value = fullName;
+                    document.getElementById('edit-role').value = role;
+                    document.getElementById('edit-location').value = location;
+                    document.getElementById('edit-website').value = website;
+                    document.getElementById('edit-tech').value = techStack;
+                    document.getElementById('edit-bio').value = bio;
+                }
+            }
+        }
+        initApp();
+
+        async function logout() {
+            if(supabaseClient) await supabaseClient.auth.signOut();
+            window.location.href = 'index.html';
+        }
+
+        // ================= PROFILE EDITING LOGIC =================
+        const editModal = document.getElementById('edit-modal');
+        function openEditModal() { editModal.classList.add('active'); }
+        function closeEditModal() { editModal.classList.remove('active'); }
+
+        // Local Image Upload & Base64 Compression
+        const fileInput = document.getElementById('edit-avatar-file');
+        const previewImg = document.getElementById('edit-avatar-preview');
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    // Compress image using Canvas
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 150; // compress to 150x150 for storage limits
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Convert to small base64 string
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    currentAvatarBase64 = dataUrl;
+                    previewImg.src = dataUrl;
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        async function saveProfile() {
+            if(!supabaseClient) return;
+            const saveBtn = document.getElementById('save-btn');
+            saveBtn.textContent = "Saving...";
+            saveBtn.disabled = true;
+            
+            const updates = {
+                username: document.getElementById('edit-username').value,
+                full_name: document.getElementById('edit-name').value,
+                role: document.getElementById('edit-role').value,
+                avatar_url: currentAvatarBase64,
+                location: document.getElementById('edit-location').value,
+                website: document.getElementById('edit-website').value,
+                tech_stack: document.getElementById('edit-tech').value,
+                bio: document.getElementById('edit-bio').value
+            };
+
+            const { data, error } = await supabaseClient.auth.updateUser({
+                data: updates
+            });
+            
+            saveBtn.textContent = "Save Changes";
+            saveBtn.disabled = false;
+            
+            if(error) {
+                alert("Error updating profile: " + error.message);
+            } else {
+                closeEditModal();
+                verifyUser(); // Reload profile instantly to UI
+            }
+        }
+    </script>
+</body>
+</html>
