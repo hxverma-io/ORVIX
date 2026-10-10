@@ -13,15 +13,6 @@ app.use(express.json());
 // Serve Static Files
 app.use(express.static(path.join(__dirname, '')));
 
-// Compiler Map (Piston/Frontend -> Wandbox)
-const compilerMap = {
-    'c': 'gcc-head-c',
-    'cpp': 'gcc-head',
-    'python': 'cpython-3.11.10',
-    'javascript': 'nodejs-20.17.0',
-    'java': 'openjdk-jdk-21+35'
-};
-
 // 1.5 Secure Config Endpoint for Frontend
 app.get('/api/config', (req, res) => {
     res.json({
@@ -30,7 +21,7 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-// 2. Code Execution API Endpoint (Proxies to Wandbox API)
+// 2. Code Execution API Endpoint (Proxies to Piston v1 API)
 app.post('/api/execute', async (req, res) => {
     try {
         const { language, files } = req.body;
@@ -39,39 +30,27 @@ app.post('/api/execute', async (req, res) => {
             return res.json({ run: { stderr: "No files provided." } });
         }
 
-        const compiler = compilerMap[language] || 'gcc-head-c';
+        // Map frontend language formats to Piston v1 supported values if needed
+        // (c, cpp, python, javascript, java are natively supported)
+        let lang = language === 'cpp' ? 'cpp' : language;
         
-        // Find main file for the code body (first file usually)
-        let mainCode = files[0].content;
-        let otherFiles = [];
-        
-        // If there are multiple files, Wandbox handles them in 'codes' array
-        if (files.length > 1) {
-            for (let i = 1; i < files.length; i++) {
-                otherFiles.push({
-                    file: files[i].name,
-                    code: files[i].content
-                });
-            }
-        }
+        // Combine all files for Piston v1 which expects a single 'source' string
+        let sourceCode = files.map(f => f.content).join('\n\n');
 
         const payload = {
-            compiler: compiler,
-            code: mainCode,
-            codes: otherFiles,
-            save: false
+            language: lang,
+            source: sourceCode
         };
 
-        // Call the Wandbox Engine (Public API) safely from backend
-        const response = await axios.post('https://wandbox.org/api/compile.json', payload);
+        // Call the Piston Engine v1 (Public API) safely from backend
+        const response = await axios.post('https://emkc.org/api/v1/piston/execute', payload);
         
-        // Map Wandbox response back to Piston-like format so frontend doesn't need changes
-        const wData = response.data;
+        const pData = response.data;
         const mappedData = {
             run: {
-                stdout: wData.program_output || wData.compiler_message || '',
-                stderr: wData.program_error || wData.compiler_error || '',
-                code: wData.status === '0' ? 0 : 1
+                stdout: pData.stdout || '',
+                stderr: pData.stderr || (pData.output && pData.output.includes('Error') ? pData.output : ''),
+                code: pData.stderr ? 1 : 0
             }
         };
 
@@ -79,7 +58,11 @@ app.post('/api/execute', async (req, res) => {
 
     } catch (error) {
         console.error("Execution Error:", error.message);
-        res.status(500).json({ message: "Failed to connect to compilation engine.", raw: error.message });
+        let errorMsg = "Failed to connect to compilation engine.";
+        if (error.response && error.response.data && error.response.data.message) {
+            errorMsg = error.response.data.message;
+        }
+        res.status(500).json({ message: errorMsg, raw: error.message });
     }
 });
 
