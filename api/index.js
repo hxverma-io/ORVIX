@@ -42,7 +42,7 @@ async function executeOnPiston(code, stdin, retries = 3) {
 }
 
 // 0. Secure Config Endpoint for Frontend (Supabase keys)
-app.get('/api/config', (req, res) => {
+app.get(['/api/config', '/config'], (req, res) => {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
         return res.status(500).json({ 
             error: "MISSING_ENV_VARS", 
@@ -56,7 +56,7 @@ app.get('/api/config', (req, res) => {
 });
 
 // 1. Get Problem Public Data
-app.get('/api/problems/:id', (req, res) => {
+app.get(['/api/problems/:id', '/problems/:id'], (req, res) => {
     const prob = problemsData.find(p => p.id === req.params.id);
     if (!prob) return res.status(404).json({ error: "Problem not found" });
     
@@ -66,7 +66,7 @@ app.get('/api/problems/:id', (req, res) => {
 });
 
 // 2. RUN CODE (Sample Case Only)
-app.post('/api/run', async (req, res) => {
+app.post(['/api/run', '/run'], async (req, res) => {
     try {
         const { code, problemId } = req.body;
         if (!code || !problemId) return res.status(400).json({ error: "Missing code or problemId" });
@@ -94,7 +94,7 @@ app.post('/api/run', async (req, res) => {
 });
 
 // 3. SUBMIT SOLUTION (All Hidden Cases)
-app.post('/api/submit', async (req, res) => {
+app.post(['/api/submit', '/submit'], async (req, res) => {
     try {
         const { code, problemId } = req.body;
         if (!code || !problemId) return res.status(400).json({ error: "Missing code or problemId" });
@@ -167,12 +167,17 @@ app.post('/api/submit', async (req, res) => {
     }
 });
 
+// Catch-all to prevent Express from ever returning an HTML 404 page
+app.use((req, res) => {
+    res.status(404).json({ error: "NOT_FOUND", message: `Cannot find route: ${req.url}` });
+});
+
 // Export the Express App for Vercel Serverless
 module.exports = app;
 
 // Local Development Support
 if (require.main === module) {
-    const PORT = 5500;
+    const PORT = process.env.PORT || 5500;
     app.listen(PORT, () => {
         console.log(`ORVIX Local Dev Server running on http://localhost:${PORT}`);
     });
