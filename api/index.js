@@ -109,3 +109,10 @@ app.post(['/api/submit', '/submit'], async (req, res) => {
 app.use((req, res) => res.status(404).json({ error: "NOT_FOUND", message: `Cannot find route: ${req.url}` }));
 
 module.exports = app;
+
+if (require.main === module) {
+    const PORT = process.env.PORT || 5500;
+    app.listen(PORT, () => {
+        console.log(`ORVIX Local Dev Server running on http://localhost:${PORT}`);
+    });
+}
