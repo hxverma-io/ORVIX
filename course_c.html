@@ -263,12 +263,42 @@
         </div>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         // Check local storage for initial setup if tab query param exists
         const urlParams = new URLSearchParams(window.location.search);
         if(urlParams.get('tab') === 'practice') {
             switchTab('practice');
         }
+        
+        let supabaseClient = null;
+        let currentUser = null;
+        let dbSolvedProblems = null;
+
+        async function initAuth() {
+            try {
+                const res = await fetch('/api/config?t=' + Date.now());
+                const config = await res.json();
+                supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+                
+                const { data } = await supabaseClient.auth.getSession();
+                if (data && data.session) {
+                    currentUser = data.session.user;
+                    // Load solved problems from DB
+                    const { data: subs } = await supabaseClient.from('submissions').select('problem_id').eq('user_id', currentUser.id).eq('verdict', 'Accepted');
+                    if (subs) {
+                        dbSolvedProblems = [...new Set(subs.map(s => s.problem_id))];
+                    }
+                }
+            } catch(e) {
+                console.error("Supabase config error", e);
+            }
+            
+            // Re-render UI after DB load
+            updateDashboardStats();
+            applyFilters();
+        }
+        initAuth();
 
         // --- Problems Database ---
         const allProblems = [
@@ -284,6 +314,9 @@
 
         // Fetch Solved
         function getSolvedProblems() {
+            if (dbSolvedProblems !== null) {
+                return dbSolvedProblems;
+            }
             const solved = localStorage.getItem('solved_problems');
             return solved ? JSON.parse(solved) : [];
         }

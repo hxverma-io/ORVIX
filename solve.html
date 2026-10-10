@@ -167,10 +167,30 @@
 
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const pid = urlParams.get('id') || "1";
         let currentProb = null;
+        
+        let supabaseClient = null;
+        let currentUser = null;
+
+        async function initAuth() {
+            try {
+                const res = await fetch('/api/config?t=' + Date.now());
+                const config = await res.json();
+                supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+                
+                const { data } = await supabaseClient.auth.getSession();
+                if (data && data.session) {
+                    currentUser = data.session.user;
+                }
+            } catch(e) {
+                console.error("Supabase config error", e);
+            }
+        }
+        initAuth();
 
         // Ace Editor Setup
         ace.require("ace/ext/language_tools");
@@ -397,13 +417,25 @@
         btnSubmit.addEventListener('click', () => executeCode(true));
         
         // Handle Complete Action
-        btnComplete.addEventListener('click', () => {
-            let solved = localStorage.getItem('solved_problems');
-            solved = solved ? JSON.parse(solved) : [];
+        btnComplete.addEventListener('click', async () => {
+            const code = editor.getValue();
             
-            if (!solved.includes(pid)) {
-                solved.push(pid);
-                localStorage.setItem('solved_problems', JSON.stringify(solved));
+            if (supabaseClient && currentUser) {
+                // Save to database
+                await supabaseClient.from('submissions').insert({
+                    user_id: currentUser.id,
+                    problem_id: pid,
+                    code: code,
+                    verdict: 'Accepted'
+                });
+            } else {
+                // Fallback for anonymous users
+                let solved = localStorage.getItem('solved_problems');
+                solved = solved ? JSON.parse(solved) : [];
+                if (!solved.includes(pid)) {
+                    solved.push(pid);
+                    localStorage.setItem('solved_problems', JSON.stringify(solved));
+                }
             }
             window.location.href = 'course_c.html?tab=practice';
         });

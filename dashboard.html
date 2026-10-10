@@ -281,21 +281,21 @@
                     <div class="stats-grid">
                         <div class="stat-card">
                             <div class="stat-list">
-                                <div class="stat-row">Total Commits (2024) <b>1,402</b></div>
-                                <div class="stat-row">Pull Requests Merged <b>86</b></div>
-                                <div class="stat-row">Issues Resolved <b>124</b></div>
-                                <div class="stat-row" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-soft);">Projects Contributed <b>14</b></div>
+                                <div class="stat-row">Problems Solved <b id="stat-solved">0</b></div>
+                                <div class="stat-row">Submissions <b id="stat-submissions">0</b></div>
+                                <div class="stat-row">Success Rate <b id="stat-success-rate">0%</b></div>
+                                <div class="stat-row" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-soft);">Rank <b>Unranked</b></div>
                             </div>
                         </div>
 
                         <div class="stat-card">
                             <div class="circle-stats-wrap">
                                 <div class="circle-stat">
-                                    <div class="c-val" style="color: var(--accent-color);">2.7k</div>
-                                    <div class="c-lbl">Contributions</div>
+                                    <div class="c-val" style="color: var(--accent-color);" id="c-solved">0</div>
+                                    <div class="c-lbl">Solved</div>
                                 </div>
                                 <div class="circle-stat purple" style="margin-left: 2rem;">
-                                    <div class="c-val" style="color: var(--accent-purple);">119</div>
+                                    <div class="c-val" style="color: var(--accent-purple);">1</div>
                                     <div class="c-lbl">Day Streak</div>
                                 </div>
                             </div>
@@ -487,7 +487,34 @@
                     document.getElementById('edit-website').value = website;
                     document.getElementById('edit-tech').value = techStack;
                     document.getElementById('edit-bio').value = bio;
+                    
+                    loadUserStats(session.user.id);
                 }
+            }
+        }
+        
+        async function loadUserStats(userId) {
+            try {
+                if(!supabaseClient) return;
+                const { data, error } = await supabaseClient
+                    .from('submissions')
+                    .select('verdict, problem_id')
+                    .eq('user_id', userId);
+                    
+                if (error) throw error;
+                
+                const totalSubmissions = data.length;
+                const accepted = data.filter(s => s.verdict === 'Accepted');
+                
+                const uniqueSolved = new Set(accepted.map(s => s.problem_id)).size;
+                const successRate = totalSubmissions > 0 ? Math.round((accepted.length / totalSubmissions) * 100) : 0;
+                
+                document.getElementById('stat-solved').textContent = uniqueSolved;
+                document.getElementById('stat-submissions').textContent = totalSubmissions;
+                document.getElementById('stat-success-rate').textContent = successRate + '%';
+                document.getElementById('c-solved').textContent = uniqueSolved;
+            } catch (err) {
+                console.error("Failed to load user stats:", err);
             }
         }
         initApp();
