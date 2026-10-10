@@ -76,5 +76,15 @@
 
         </div>
     </main>
+
+    <script>
+        // Supabase OAuth Fallback:
+        // If the Supabase Dashboard "Redirect URLs" are not perfectly configured, 
+        // Supabase will ignore the redirectTo parameter and send the user to the root URL (index.html).
+        // This script catches the access_token and seamlessly forwards it to the dashboard.
+        if (window.location.hash.includes('access_token')) {
+            window.location.href = 'dashboard.html' + window.location.hash;
+        }
+    </script>
 </body>
 </html>
