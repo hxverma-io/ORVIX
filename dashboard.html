@@ -417,17 +417,32 @@
 
         async function verifyUser() {
             if (!supabaseClient) return;
+
+            // Handle the OAuth redirect URL processing seamlessly
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_OUT') {
+                    window.location.href = 'login.html';
+                } else if (session) {
+                    processSessionData(session);
+                }
+            });
+
             const { data, error } = await supabaseClient.auth.getSession();
-            if (error || !data.session) {
+            if (error || (!data.session && !window.location.hash.includes('access_token'))) {
                 window.location.href = 'login.html'; 
-            } else {
-                const email = data.session.user.email;
-                const meta = data.session.user.user_metadata || {};
-                
-                if(email) {
-                    const emailNamePart = email.split('@')[0];
-                    const cleanName = emailNamePart.replace(/[0-9.]/g, ' ').trim();
-                    const defaultName = cleanName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            } else if (data.session) {
+                processSessionData(data.session);
+            }
+        }
+
+        function processSessionData(session) {
+            const email = session.user.email;
+            const meta = session.user.user_metadata || {};
+            
+            if(email) {
+                const emailNamePart = email.split('@')[0];
+                const cleanName = emailNamePart.replace(/[0-9.]/g, ' ').trim();
+                const defaultName = cleanName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                     
                     const username = meta.username || emailNamePart.toLowerCase();
                     const fullName = meta.full_name || defaultName || 'Developer';

@@ -193,6 +193,14 @@
         // Check if user is already logged in
         async function checkSession() {
             if (!supabaseClient) return;
+
+            // Watch for auth changes (like OAuth redirect completion)
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (session) {
+                    window.location.href = 'dashboard.html';
+                }
+            });
+
             try {
                 const { data, error } = await supabaseClient.auth.getSession();
                 if (data && data.session) {
