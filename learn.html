@@ -329,7 +329,7 @@
         let supabaseClient;
         async function initApp() {
             try {
-                const res = await fetch('/api/config');
+                const res = await fetch('/api/config?t=' + Date.now());
                 const config = await res.json();
                 supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
                 verifyUser();

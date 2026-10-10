@@ -152,7 +152,7 @@
 
         async function initApp() {
             try {
-                const res = await fetch('/api/config');
+                const res = await fetch('/api/config?t=' + Date.now());
                 const config = await res.json();
                 
                 if (!res.ok) {
