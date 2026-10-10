@@ -2,31 +2,18 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
-const fs = require('fs');
-require('dotenv').config();
+
+// Vercel auto-traces this requirement during build
+const problemsData = require('../data/problems.json');
 
 const app = express();
-const PORT = 5500;
 
 app.use(cors());
 app.use(express.json());
 
-// Serve Static Files
-app.use(express.static(path.join(__dirname, '')));
-
-// Load Problems Database
-const problemsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'problems.json'), 'utf8'));
-
-// 1. Get Problem Public Data
-app.get('/api/problems/:id', (req, res) => {
-    const prob = problemsData.find(p => p.id === req.params.id);
-    if (!prob) return res.status(404).json({ error: "Problem not found" });
-    
-    // Omit hidden testCases for public API
-    const publicProb = { ...prob };
-    delete publicProb.testCases;
-    res.json(publicProb);
-});
+// In Vercel, static files are handled by vercel.json rewrites, 
+// but we keep this for local development if run directly.
+app.use(express.static(path.join(__dirname, '..')));
 
 // Helper: Run code on Piston v1 with retry logic for 429 Rate Limits
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -54,6 +41,16 @@ async function executeOnPiston(code, stdin, retries = 3) {
     throw new Error("Piston API Rate Limit Exceeded");
 }
 
+// 1. Get Problem Public Data
+app.get('/api/problems/:id', (req, res) => {
+    const prob = problemsData.find(p => p.id === req.params.id);
+    if (!prob) return res.status(404).json({ error: "Problem not found" });
+    
+    const publicProb = { ...prob };
+    delete publicProb.testCases;
+    res.json(publicProb);
+});
+
 // 2. RUN CODE (Sample Case Only)
 app.post('/api/run', async (req, res) => {
     try {
@@ -63,12 +60,10 @@ app.post('/api/run', async (req, res) => {
         const prob = problemsData.find(p => p.id === problemId);
         if (!prob) return res.status(404).json({ error: "Problem not found" });
 
-        // Run only the first example case
         const tc = prob.examples[0];
         
         const pData = await executeOnPiston(code, tc.input);
         
-        // Piston v1 mixes stdout/stderr sometimes. We prefer stdout, fallback to output if no error
         const stderr = pData.stderr || (pData.output && pData.output.includes('error:') ? pData.output : '');
         const stdout = pData.stdout ? pData.stdout.trim() : (pData.output && !pData.output.includes('error:') ? pData.output.trim() : '');
 
@@ -78,7 +73,6 @@ app.post('/api/run', async (req, res) => {
             input: tc.input,
             expected: tc.output
         });
-
     } catch (error) {
         console.error("Run Error:", error.message);
         res.status(500).json({ error: "Execution engine unavailable" });
@@ -113,7 +107,7 @@ app.post('/api/submit', async (req, res) => {
                     error: stderr,
                     input: tc.input
                 });
-                break; // Stop testing on compile/runtime error
+                break;
             }
 
             const stdout = pData.stdout ? pData.stdout.trim() : (pData.output ? pData.output.trim() : "");
@@ -136,11 +130,11 @@ app.post('/api/submit', async (req, res) => {
                     output: stdout,
                     expected: expected
                 });
-                break; // Stop testing on first fail
+                break;
             }
             
             if (i < prob.testCases.length - 1) {
-                await sleep(500); // 500ms delay between tests to respect API limits
+                await sleep(500); 
             }
         }
 
@@ -153,43 +147,19 @@ app.post('/api/submit', async (req, res) => {
             verdict: finalVerdict,
             results: results
         });
-
     } catch (error) {
         console.error("Submit Error:", error.message);
         res.status(500).json({ error: "Execution engine unavailable" });
     }
 });
 
+// Export the Express App for Vercel Serverless
+module.exports = app;
 
-// Legacy endpoint for playground.html (General execution without strict problem constraints)
-app.post('/api/execute', async (req, res) => {
-    try {
-        const { language, files } = req.body;
-        if (!files || files.length === 0) return res.json({ run: { stderr: "No files provided." } });
-
-        let lang = language === 'cpp' ? 'cpp' : language;
-        let sourceCode = files.map(f => f.content).join('\n\n');
-
-        const payload = { language: lang, source: sourceCode };
-        const response = await axios.post('https://emkc.org/api/v1/piston/execute', payload);
-        
-        const pData = response.data;
-        const mappedData = {
-            run: {
-                stdout: pData.stdout || '',
-                stderr: pData.stderr || (pData.output && pData.output.includes('error:') ? pData.output : ''),
-                code: pData.stderr ? 1 : 0
-            }
-        };
-        res.json(mappedData);
-
-    } catch (error) {
-        console.error("Execution Error:", error.message);
-        res.status(500).json({ message: "Failed to connect to compilation engine." });
-    }
-});
-
-
-app.listen(PORT, () => {
-    console.log(`ORVIX Backend running on http://localhost:${PORT}`);
-});
+// Local Development Support
+if (require.main === module) {
+    const PORT = 5500;
+    app.listen(PORT, () => {
+        console.log(`ORVIX Local Dev Server running on http://localhost:${PORT}`);
+    });
+}
