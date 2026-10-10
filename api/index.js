@@ -2,12 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const problemsData = require('../data/problems.json');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Serve static files locally so frontend works during local dev
+app.use(express.static(path.join(__dirname, '..')));
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
