@@ -41,6 +41,14 @@ async function executeOnPiston(code, stdin, retries = 3) {
     throw new Error("Piston API Rate Limit Exceeded");
 }
 
+// 0. Secure Config Endpoint for Frontend (Supabase keys)
+app.get('/api/config', (req, res) => {
+    res.json({
+        SUPABASE_URL: process.env.SUPABASE_URL,
+        SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY
+    });
+});
+
 // 1. Get Problem Public Data
 app.get('/api/problems/:id', (req, res) => {
     const prob = problemsData.find(p => p.id === req.params.id);
