@@ -43,6 +43,12 @@ async function executeOnPiston(code, stdin, retries = 3) {
 
 // 0. Secure Config Endpoint for Frontend (Supabase keys)
 app.get('/api/config', (req, res) => {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+        return res.status(500).json({ 
+            error: "MISSING_ENV_VARS", 
+            message: "Vercel par SUPABASE_URL aur SUPABASE_ANON_KEY environment variables set nahi hain!" 
+        });
+    }
     res.json({
         SUPABASE_URL: process.env.SUPABASE_URL,
         SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY

@@ -154,11 +154,20 @@
             try {
                 const res = await fetch('/api/config');
                 const config = await res.json();
+                
+                if (!res.ok) {
+                    throw new Error(config.message || "Failed to fetch database configuration");
+                }
+                
+                if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {
+                    throw new Error("Vercel Settings me SUPABASE_URL aur SUPABASE_ANON_KEY add karna zaroori hai!");
+                }
+                
                 supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
                 checkSession();
             } catch (e) {
-                connectionError = "Database configuration is invalid. Please start the backend server.";
-                console.error(connectionError, e);
+                connectionError = e.message;
+                console.error("Initialization Error:", e);
                 showMessage("System Error: " + connectionError, true);
             }
         }
